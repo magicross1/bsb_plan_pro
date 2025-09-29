@@ -1,9 +1,9 @@
 # 订单相关API路由
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
-from app.models import ApiResponse, Container, TaskCreate
+from app.models import *
 from app.database import get_containers, get_container_by_number
-from app.utils import create_task_from_container
+from app.utils import *
 
 router = APIRouter()
 
@@ -43,6 +43,67 @@ async def get_containers_list(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取容器列表失败: {str(e)}")
 
+@router.post("/get_last_pickup")
+async def get_last_pickup(RequestDate: DateRequest,):
+    """最后一天取出"""
+    try:
+        # TODO: 根据 request.query_date 查询 LastPickUp 内容
+        # 逻辑：如果当天是柜子的LAST FREE且还未安排拿柜 或者安排时间晚于LAST FREE，则返回
+        """获取容器列表"""
+        containers = get_containers()
+        results = []
+        results = [c for c in containers if Str2Date(c.lastFree) == RequestDate.query_date and 
+                   (c.planPickUpDate.strip() == "" or c.planPickUpDate > c.lastFree)]
+
+        return ApiResponse(
+            code=0,
+            message="ok",
+            data={"date": results}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取 LastPickUp 失败: {str(e)}")
+    
+@router.post("/get_last_dehire")
+async def get_last_dehire(RequestDate: DateRequest,):
+    """最后一天还柜"""
+    try:
+        # TODO: 根据 request.query_date 查询 LastDehire 内容
+        # 逻辑：如果当天是柜子的LAST FREE且还未安排拿柜 或者安排时间晚于LAST FREE，则返回
+        """获取容器列表"""
+        containers = get_containers()
+        results = []
+        results = [c for c in containers if Str2Date(c.lastDention) == RequestDate.query_date and 
+                   (c.planDehireDate.strip() == "" or c.planDehireDate > c.lastDention)]
+
+        return ApiResponse(
+            code=0,
+            message="ok",
+            data={"date": results}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取 LastDehire 失败: {str(e)}")
+    
+@router.post("/get_today_deliver")
+async def get_today_deliver(RequestDate: DateRequest,):
+    pass
+    # """当日要送"""
+    # try:
+    #     # TODO: 根据 request.query_date 查询 LastDehire 内容
+    #     # 逻辑：客户要求当天送柜 且并未安排或安排到后面日期
+    #     """获取容器列表"""
+    #     containers = get_containers()
+    #     results = []
+    #     results = [c for c in containers if Str2Date(c.lastDention) == RequestDate.query_date and 
+    #                (c.planDehireDate.strip() == "" or c.planDehireDate > c.lastDention)]
+
+    #     return ApiResponse(
+    #         code=0,
+    #         message="ok",
+    #         data={"date": results}
+    #     )
+    # except Exception as e:
+    #     raise HTTPException(status_code=500, detail=f"获取 LastDehire 失败: {str(e)}")
+    
 @router.get("/container/{ctn_number}")
 async def get_container_detail(ctn_number: str):
     """获取容器详情"""

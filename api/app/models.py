@@ -1,6 +1,6 @@
 # 数据模型定义
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, List, Literal, Any
 
 # 任务类型
@@ -123,3 +123,7 @@ class ApiResponse(BaseModel):
     code: int
     message: str
     data: Optional[Any] = None
+
+# 时间查询格式
+class DateRequest(BaseModel):
+    query_date: date

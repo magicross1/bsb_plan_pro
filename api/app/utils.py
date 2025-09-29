@@ -1,6 +1,6 @@
 # 工具函数
-from datetime import datetime, timedelta
-from typing import Dict, Any
+from datetime import datetime, timedelta, date
+from typing import Dict, Any, Optional
 from app.models import Container, TaskType
 
 def pickup_address(container: Container) -> str:
@@ -64,3 +64,46 @@ def create_task_from_container(container: Container, task_type: TaskType,
     }
     
     return task
+
+"""时间处理模块"""
+def Str2Date(s: str) -> Optional[date]:
+    """把字符串转成 date 对象"""
+    formats = ["%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S"]
+    for fmt in formats:
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(s).date()
+    except Exception:
+        return None
+
+def Str2DateTime(s: str) -> Optional[datetime]:
+    """把字符串转成 datetime 对象"""
+    formats = ["%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"]
+    for fmt in formats:
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(s)
+    except Exception:
+        return None
+
+def Date2Str(d: date, fmt: str = "%Y-%m-%d") -> str:
+    """把 date 转成字符串"""
+    return d.strftime(fmt)
+
+def DateTime2Str(dt: datetime, fmt: str = "%Y-%m-%d %H:%M:%S") -> str:
+    """把 datetime 转成字符串"""
+    return dt.strftime(fmt)
+
+def DateTime2Date(dt: datetime) -> date:
+    """把 datetime 转成 date"""
+    return dt.date()
+
+def Date2DateTime(d: date) -> datetime:
+    """把 date 转成 datetime (默认 00:00:00)"""
+    return datetime.combine(d, datetime.min.time())
