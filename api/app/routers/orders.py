@@ -47,7 +47,7 @@ async def get_containers_list(
 async def get_last_pickup(RequestDate: DateRequest,):
     """最后一天取出"""
     try:
-        # TODO: 根据 request.query_date 查询 LastPickUp 内容
+        # 根据 request.query_date 查询 LastPickUp 内容
         # 逻辑：如果当天是柜子的LAST FREE且还未安排拿柜 或者安排时间晚于LAST FREE，则返回
         """获取容器列表"""
         containers = get_containers()
@@ -67,8 +67,8 @@ async def get_last_pickup(RequestDate: DateRequest,):
 async def get_last_dehire(RequestDate: DateRequest,):
     """最后一天还柜"""
     try:
-        # TODO: 根据 request.query_date 查询 LastDehire 内容
-        # 逻辑：如果当天是柜子的LAST FREE且还未安排拿柜 或者安排时间晚于LAST FREE，则返回
+        # 根据 request.query_date 查询 LastDehire 内容
+        # 逻辑：如果当天是柜子的lastDention且还未安排拿柜 或者安排时间晚于lastDention，则返回
         """获取容器列表"""
         containers = get_containers()
         results = []
@@ -85,24 +85,23 @@ async def get_last_dehire(RequestDate: DateRequest,):
     
 @router.post("/get_today_deliver")
 async def get_today_deliver(RequestDate: DateRequest,):
-    pass
-    # """当日要送"""
-    # try:
-    #     # TODO: 根据 request.query_date 查询 LastDehire 内容
-    #     # 逻辑：客户要求当天送柜 且并未安排或安排到后面日期
-    #     """获取容器列表"""
-    #     containers = get_containers()
-    #     results = []
-    #     results = [c for c in containers if Str2Date(c.lastDention) == RequestDate.query_date and 
-    #                (c.planDehireDate.strip() == "" or c.planDehireDate > c.lastDention)]
+    """当日要送"""
+    try:
+        # 根据 request.query_date 查询 RequestDeliverDate 内容
+        # 逻辑：客户要求当天送柜 且并未安排或安排到后面日期
+        """获取容器列表"""
+        containers = get_containers()
+        results = []
+        results = [c for c in containers if Str2Date(c.RequestDeliverDate) == RequestDate.query_date and 
+                   (c.planDeliverDate.strip() == "" or c.planDeliverDate != c.RequestDeliverDate)]
 
-    #     return ApiResponse(
-    #         code=0,
-    #         message="ok",
-    #         data={"date": results}
-    #     )
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=f"获取 LastDehire 失败: {str(e)}")
+        return ApiResponse(
+            code=0,
+            message="ok",
+            data={"date": results}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取 Today Deliver 失败: {str(e)}")
     
 @router.get("/container/{ctn_number}")
 async def get_container_detail(ctn_number: str):

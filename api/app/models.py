@@ -46,6 +46,7 @@ class Container(BaseModel):
     planDeliverDate: str = Field(alias='Plan Deliver Date')
     planPickEmptyDate: str = Field(alias='Plan Pick Empty Date')
     planDehireDate: str = Field(alias='Plan Dehire Date')
+    RequestDeliverDate: str = Field(alias='Request Deliver Date')
 
     class Config:
         populate_by_name = True
