@@ -210,3 +210,25 @@ async def drag_change_trip_time(payload: DragTimePayload):
             return ApiResponse(code=404, message="行程不存在", data=None)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"拖拽改变时间失败: {str(e)}")
+
+@router.get("/get_vehicle_driver_list")
+async def get_vehicle_driver_list():
+    try:
+        from app.database import DB
+
+        # 所有车辆和司机
+        plateNumber = DB['plateNumber']
+        driverId = DB['driverId']
+
+        # 已创建的车辆和司机
+        vehicles = DB['vehicles']
+        selected_vehicles = [vehicle['plateNumber'] for vehicle in vehicles]
+        selected_drivers = [vehicle['driverId'] for vehicle in vehicles]
+
+        # 返回可选择的车辆和司机
+        availableVehicles = [v for v in plateNumber if v not in selected_vehicles]
+        availableDrivers = [d for d in driverId if d not in selected_drivers]
+        
+        return ApiResponse(code=0, message="ok", data=[availableVehicles, availableDrivers])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取车辆列表失败: {str(e)}")

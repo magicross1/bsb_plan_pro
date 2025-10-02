@@ -43,8 +43,8 @@ async def get_containers_list(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取容器列表失败: {str(e)}")
 
-@router.post("/get_last_pickup")
-async def get_last_pickup(RequestDate: DateRequest,):
+@router.post("/get_last_pickup_ctns")
+async def get_last_pickup_ctns(RequestDate: DateRequest,):
     """最后一天取出"""
     try:
         # 根据 request.query_date 查询 LastPickUp 内容
@@ -63,8 +63,8 @@ async def get_last_pickup(RequestDate: DateRequest,):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取 LastPickUp 失败: {str(e)}")
     
-@router.post("/get_last_dehire")
-async def get_last_dehire(RequestDate: DateRequest,):
+@router.post("/get_last_dehire_ctns")
+async def get_last_dehire_ctns(RequestDate: DateRequest,):
     """最后一天还柜"""
     try:
         # 根据 request.query_date 查询 LastDehire 内容
@@ -83,12 +83,12 @@ async def get_last_dehire(RequestDate: DateRequest,):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取 LastDehire 失败: {str(e)}")
     
-@router.post("/get_today_deliver")
-async def get_today_deliver(RequestDate: DateRequest,):
+@router.post("/get_today_deliver_ctns")
+async def get_today_deliver_ctns(RequestDate: DateRequest,):
     """当日要送"""
     try:
         # 根据 request.query_date 查询 RequestDeliverDate 内容
-        # 逻辑：客户要求当天送柜 且并未安排或安排到后面日期
+        # 逻辑：客户要求当天送柜 且并未安排或安排日期与需求不符
         """获取容器列表"""
         containers = get_containers()
         results = []

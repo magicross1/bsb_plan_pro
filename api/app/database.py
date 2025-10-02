@@ -6,7 +6,8 @@ from app.models import Vehicle, Trip, Task, Container
 
 # 内存数据存储
 DB = {
-    'vehicles': [],
+    'plateNumber': [],
+    'driverId': [],
     'trips': [],
     'tasks': [],
     'containers': []
@@ -14,6 +15,23 @@ DB = {
 
 def init_sample_data():
     """初始化示例数据"""
+
+    # 车辆列表
+    plateNumber = [
+        'XO03VJ',
+        'XO14NL',
+        'CF26PU',
+        'ABC-123'
+    ]
+
+    # 司机列表
+    driverId = [
+        'Lin',
+        'Tanny',
+        'Tran',
+        'DRIVER001'
+    ]
+    
     # 创建示例车辆
     vehicles = [
         {
@@ -342,6 +360,8 @@ def init_sample_data():
     }
     
     # 更新数据
+    DB['plateNumber'] = plateNumber
+    DB['driverId'] = driverId
     DB['vehicles'] = vehicles
     DB['containers'] = containers
     DB['trips'].append(trip1)
