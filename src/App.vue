@@ -47,7 +47,7 @@ onMounted(() => {
 
 /* CSS变量定义 */
 :root {
-  --row-height: 60px;
+  --row-height: 120px;
   --task-margin: 4px;
   --trip-background: #e3f2fd;
   --timeline-bg: #f5f5f5;

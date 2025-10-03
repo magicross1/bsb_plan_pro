@@ -1,10 +1,13 @@
 <!-- 顶部待办任务区 -->
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { ElCard, ElTag, ElButton, ElIcon } from 'element-plus'
+import { ref, computed, onMounted, watch } from 'vue'
+import { ElTag, ElButton, ElIcon, ElTable, ElTableColumn } from 'element-plus'
 import { Van, User, Clock } from '@element-plus/icons-vue'
 import type { Container } from '@/types'
-import { isToday, isTodayOrBefore } from '@/utils/time'
+import { useGanttStore } from '@/stores/gantt'
+import dayjs from 'dayjs'
+
+const ganttStore = useGanttStore()
 
 // 待办任务数据
 const todoTasks = ref<{
@@ -17,39 +20,184 @@ const todoTasks = ref<{
   clientRequest: []
 })
 
-// 加载待办任务
-async function loadTodoTasks() {
+// 获取当前页面日期
+const currentPageDate = computed(() => {
+  // 从时间轴开始时间提取日期
+  return dayjs(ganttStore.timelineStart).format('YYYY-MM-DD')
+})
+
+// 加载今日必送数据
+async function loadMustDeliver() {
   try {
-    const response = await fetch('/api/orders/containers')
+    const response = await fetch('/api/orders/get_last_pickup_ctns', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query_date: currentPageDate.value
+      })
+    })
     const result = await response.json()
     
     if (result.code === 0) {
-      const containers: Container[] = result.data
-      
-      // 今日必送：planDeliverDate == 今日 OR lastFree <= 今日 23:59
-      todoTasks.value.mustDeliver = containers.filter(container => 
-        isToday(container.planDeliverDate) || isTodayOrBefore(container.lastFree)
-      )
-      
-      // 今日必还：planDehireDate == 今日 OR lastFree <= 今日 23:59  
-      todoTasks.value.mustReturn = containers.filter(container =>
-        isToday(container.planDehireDate) || isTodayOrBefore(container.lastFree)
-      )
-      
-      // 客户需求：logisticsStatus in ['新订单','Client']
-      todoTasks.value.clientRequest = containers.filter(container =>
-        ['新订单', 'Client'].includes(container.logisticsStatus)
-      )
+      // 转换数据格式，将字段名转换为驼峰命名
+      todoTasks.value.mustDeliver = (result.data.date || []).map((item: any) => ({
+        ctnNumber: item['CTN NUMBER'],
+        fullDeliverAddress: item['FULL Deliver Address'],
+        ctnType: item['CTN Type'],
+        terminal: item['Terminal'],
+        fullClientName: item['FULL CLIENT Name'],
+        logisticsStatus: item['Logitics Status'],
+        deliverType: item['Deliver Type'],
+        doorPositon: item['Door Positon'],
+        fullVesselName: item['FULL Vessel Name'],
+        ctnWeight: item['CTN Weight'],
+        remark: item['REMARK'],
+        freightForwarders: item['Freight Forwarders'],
+        eta: item['ETA'],
+        etd: item['ETD'],
+        firstFree: item['First Free'],
+        lastFree: item['Last Free'],
+        lastDention: item['Last Dention'],
+        dischargeTime: item['Discharge Time'],
+        gateoutTime: item['Gateout Time'],
+        edoPin: item['EDO PIN'],
+        shippingLine: item['Shipping Line'],
+        emptyPark: item['Empty Park'],
+        pickUpDate: item['Pick Up Date'],
+        deliverDate: item['Deliver Date'],
+        pickEmptyDate: item['Pick Empty Date'],
+        dehireDate: item['Dehire Date'],
+        planPickUpDate: item['Plan Pick Up Date'],
+        planDeliverDate: item['Plan Deliver Date'],
+        planPickEmptyDate: item['Plan Pick Empty Date'],
+        planDehireDate: item['Plan Dehire Date'],
+        requestDeliverDate : item['Request Deliver Date']
+      }))
     }
   } catch (error) {
-    console.error('Error loading todo tasks:', error)
+    console.error('Error loading must deliver:', error)
   }
 }
 
-// 添加到行程
-function addToTrip(container: Container, taskType: 'deliver' | 'return') {
-  // TODO: 打开订单选择面板或直接创建任务
-  console.log('Add to trip:', container, taskType)
+// 加载今日必还数据
+async function loadMustReturn() {
+  try {
+    const response = await fetch('/api/orders/get_last_dehire_ctns', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query_date: currentPageDate.value
+      })
+    })
+    const result = await response.json()
+    
+    if (result.code === 0) {
+      // 转换数据格式，将字段名转换为驼峰命名
+      todoTasks.value.mustReturn = (result.data.date || []).map((item: any) => ({
+        ctnNumber: item['CTN NUMBER'],
+        fullDeliverAddress: item['FULL Deliver Address'],
+        ctnType: item['CTN Type'],
+        emptyPark: item['Empty Park'],
+        fullClientName: item['FULL CLIENT Name'],
+        logisticsStatus: item['Logitics Status'],
+        deliverType: item['Deliver Type'],
+        doorPositon: item['Door Positon'],
+        fullVesselName: item['FULL Vessel Name'],
+        ctnWeight: item['CTN Weight'],
+        remark: item['REMARK'],
+        freightForwarders: item['Freight Forwarders'],
+        terminal: item['Terminal'],
+        eta: item['ETA'],
+        etd: item['ETD'],
+        firstFree: item['First Free'],
+        lastFree: item['Last Free'],
+        lastDention: item['Last Dention'],
+        dischargeTime: item['Discharge Time'],
+        gateoutTime: item['Gateout Time'],
+        edoPin: item['EDO PIN'],
+        shippingLine: item['Shipping Line'],
+        pickUpDate: item['Pick Up Date'],
+        deliverDate: item['Deliver Date'],
+        pickEmptyDate: item['Pick Empty Date'],
+        dehireDate: item['Dehire Date'],
+        planPickUpDate: item['Plan Pick Up Date'],
+        planDeliverDate: item['Plan Deliver Date'],
+        planPickEmptyDate: item['Plan Pick Empty Date'],
+        planDehireDate: item['Plan Dehire Date'],
+        requestDeliverDate : item['Request Deliver Date']
+      }))
+    }
+  } catch (error) {
+    console.error('Error loading must return:', error)
+  }
+}
+
+// 加载客户需求数据
+async function loadClientRequest() {
+  try {
+    const response = await fetch('/api/orders/get_today_deliver_ctns', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query_date: currentPageDate.value
+      })
+    })
+    const result = await response.json()
+    
+    if (result.code === 0) {
+      // 转换数据格式，将字段名转换为驼峰命名
+      todoTasks.value.clientRequest = (result.data.date || []).map((item: any) => ({
+        ctnNumber: item['CTN NUMBER'],
+        fullDeliverAddress: item['FULL Deliver Address'],
+        ctnType: item['CTN Type'],
+        terminal: item['Terminal'],
+        fullClientName: item['FULL CLIENT Name'],
+        logisticsStatus: item['Logitics Status'],
+        deliverType: item['Deliver Type'],
+        doorPositon: item['Door Positon'],
+        fullVesselName: item['FULL Vessel Name'],
+        ctnWeight: item['CTN Weight'],
+        remark: item['REMARK'],
+        freightForwarders: item['Freight Forwarders'],
+        eta: item['ETA'],
+        etd: item['ETD'],
+        firstFree: item['First Free'],
+        lastFree: item['Last Free'],
+        lastDention: item['Last Dention'],
+        dischargeTime: item['Discharge Time'],
+        gateoutTime: item['Gateout Time'],
+        edoPin: item['EDO PIN'],
+        shippingLine: item['Shipping Line'],
+        emptyPark: item['Empty Park'],
+        pickUpDate: item['Pick Up Date'],
+        deliverDate: item['Deliver Date'],
+        pickEmptyDate: item['Pick Empty Date'],
+        dehireDate: item['Dehire Date'],
+        planPickUpDate: item['Plan Pick Up Date'],
+        planDeliverDate: item['Plan Deliver Date'],
+        planPickEmptyDate: item['Plan Pick Empty Date'],
+        planDehireDate: item['Plan Dehire Date'],
+        requestDeliverDate: item['Request Deliver Date']
+      }))
+    }
+  } catch (error) {
+    console.error('Error loading client request:', error)
+  }
+}
+
+// 加载所有待办任务
+async function loadTodoTasks() {
+  await Promise.all([
+    loadMustDeliver(),
+    loadMustReturn(),
+    loadClientRequest()
+  ])
 }
 
 // 新建行程并添加任务
@@ -58,11 +206,10 @@ function createTripWithTask(container: Container, taskType: 'deliver' | 'return'
   console.log('Create trip with task:', container, taskType)
 }
 
-// 打开详情
-function openDetail(container: Container) {
-  // TODO: 打开容器详情面板
-  console.log('Open detail:', container)
-}
+// 监听当前页面日期变化，重新加载数据
+watch(currentPageDate, () => {
+  loadTodoTasks()
+}, { immediate: true })
 
 onMounted(() => {
   loadTodoTasks()
@@ -77,35 +224,26 @@ onMounted(() => {
         <span>今日必送</span>
         <ElTag type="danger">{{ todoTasks.mustDeliver.length }}</ElTag>
       </div>
-      <div class="todo-cards">
-        <ElCard 
-          v-for="container in todoTasks.mustDeliver.slice(0, 5)" 
-          :key="container.ctnNumber"
-          class="todo-card"
-          shadow="hover"
+      <div class="table-container">
+        <ElTable 
+          :data="todoTasks.mustDeliver" 
+          size="small"
+          stripe
+          :show-header="true"
+          :max-height="200"
         >
-          <div class="card-content">
-            <div class="card-header">
-              <strong>{{ container.ctnNumber }}</strong>
-              <ElTag size="small">{{ container.ctnType }}</ElTag>
-            </div>
-            <div class="card-body">
-              <div>{{ container.fullClientName }}</div>
-              <div class="address">{{ container.fullDeliverAddress }}</div>
-            </div>
-            <div class="card-actions">
-              <ElButton size="small" @click="addToTrip(container, 'deliver')">
-                加入行程
-              </ElButton>
-              <ElButton size="small" type="primary" @click="createTripWithTask(container, 'deliver')">
+          <ElTableColumn prop="ctnNumber" label="柜号" width="120" show-overflow-tooltip />
+          <ElTableColumn prop="fullDeliverAddress" label="送货地址" min-width="200" show-overflow-tooltip />
+          <ElTableColumn prop="ctnType" label="柜型" width="80" />
+          <ElTableColumn prop="terminal" label="码头" width="120" show-overflow-tooltip />
+          <ElTableColumn label="操作" width="120" fixed="right">
+            <template #default="{ row }">
+              <ElButton size="small" type="primary" @click="createTripWithTask(row, 'deliver')">
                 新建行程
               </ElButton>
-              <ElButton size="small" text @click="openDetail(container)">
-                详情
-              </ElButton>
-            </div>
-          </div>
-        </ElCard>
+            </template>
+          </ElTableColumn>
+        </ElTable>
       </div>
     </div>
 
@@ -115,35 +253,26 @@ onMounted(() => {
         <span>今日必还</span>
         <ElTag type="warning">{{ todoTasks.mustReturn.length }}</ElTag>
       </div>
-      <div class="todo-cards">
-        <ElCard 
-          v-for="container in todoTasks.mustReturn.slice(0, 5)" 
-          :key="container.ctnNumber"
-          class="todo-card"
-          shadow="hover"
+      <div class="table-container">
+        <ElTable 
+          :data="todoTasks.mustReturn" 
+          size="small"
+          stripe
+          :show-header="true"
+          :max-height="200"
         >
-          <div class="card-content">
-            <div class="card-header">
-              <strong>{{ container.ctnNumber }}</strong>
-              <ElTag size="small" type="warning">{{ container.ctnType }}</ElTag>
-            </div>
-            <div class="card-body">
-              <div>{{ container.fullClientName }}</div>
-              <div class="address">{{ container.emptyPark || '待定' }}</div>
-            </div>
-            <div class="card-actions">
-              <ElButton size="small" @click="addToTrip(container, 'return')">
-                加入行程
-              </ElButton>
-              <ElButton size="small" type="primary" @click="createTripWithTask(container, 'return')">
+          <ElTableColumn prop="ctnNumber" label="柜号" width="120" show-overflow-tooltip />
+          <ElTableColumn prop="fullDeliverAddress" label="送货地址" min-width="200" show-overflow-tooltip />
+          <ElTableColumn prop="ctnType" label="柜型" width="80" />
+          <ElTableColumn prop="emptyPark" label="空柜场" width="120" show-overflow-tooltip />
+          <ElTableColumn label="操作" width="120" fixed="right">
+            <template #default="{ row }">
+              <ElButton size="small" type="primary" @click="createTripWithTask(row, 'return')">
                 新建行程
               </ElButton>
-              <ElButton size="small" text @click="openDetail(container)">
-                详情
-              </ElButton>
-            </div>
-          </div>
-        </ElCard>
+            </template>
+          </ElTableColumn>
+        </ElTable>
       </div>
     </div>
 
@@ -153,32 +282,26 @@ onMounted(() => {
         <span>客户需求</span>
         <ElTag type="success">{{ todoTasks.clientRequest.length }}</ElTag>
       </div>
-      <div class="todo-cards">
-        <ElCard 
-          v-for="container in todoTasks.clientRequest.slice(0, 5)" 
-          :key="container.ctnNumber"
-          class="todo-card"
-          shadow="hover"
+      <div class="table-container">
+        <ElTable 
+          :data="todoTasks.clientRequest.slice(0, 10)" 
+          size="small"
+          stripe
+          :show-header="true"
+          :max-height="200"
         >
-          <div class="card-content">
-            <div class="card-header">
-              <strong>{{ container.ctnNumber }}</strong>
-              <ElTag size="small" type="success">{{ container.logisticsStatus }}</ElTag>
-            </div>
-            <div class="card-body">
-              <div>{{ container.fullClientName }}</div>
-              <div class="address">{{ container.terminal }}</div>
-            </div>
-            <div class="card-actions">
-              <ElButton size="small" type="primary" @click="createTripWithTask(container, 'deliver')">
+          <ElTableColumn prop="ctnNumber" label="柜号" width="120" show-overflow-tooltip />
+          <ElTableColumn prop="fullClientName" label="客户名称" min-width="150" show-overflow-tooltip />
+          <ElTableColumn prop="logisticsStatus" label="状态" width="100" />
+          <ElTableColumn prop="terminal" label="码头" width="120" show-overflow-tooltip />
+          <ElTableColumn label="操作" width="120" fixed="right">
+            <template #default="{ row }">
+              <ElButton size="small" type="primary" @click="createTripWithTask(row, 'deliver')">
                 新建行程
               </ElButton>
-              <ElButton size="small" text @click="openDetail(container)">
-                详情
-              </ElButton>
-            </div>
-          </div>
-        </ElCard>
+            </template>
+          </ElTableColumn>
+        </ElTable>
       </div>
     </div>
   </div>
@@ -196,65 +319,49 @@ onMounted(() => {
 }
 
 .todo-section {
-  min-width: 300px;
+  min-width: 400px;
   flex-shrink: 0;
+  background: white;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .todo-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   font-weight: 500;
   color: var(--text-primary);
+  font-size: 16px;
 }
 
-.todo-cards {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.todo-card {
-  min-width: 240px;
-  max-width: 240px;
-}
-
-.card-content {
-  padding: 0;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.card-body {
-  margin-bottom: 12px;
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.address {
-  font-size: 12px;
-  color: #999;
-  margin-top: 4px;
+.table-container {
+  border-radius: 4px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.card-actions {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
+.table-container :deep(.el-table) {
+  border-radius: 4px;
 }
 
-.card-actions .el-button {
-  flex: 1;
-  min-width: 0;
+.table-container :deep(.el-table th) {
+  background-color: #f8f9fa;
+  color: #495057;
+  font-weight: 600;
+}
+
+.table-container :deep(.el-table--striped .el-table__body tr.el-table__row--striped td) {
+  background-color: #f8f9fa;
+}
+
+.table-container :deep(.el-table td) {
+  padding: 8px 0;
+}
+
+.table-container :deep(.el-button--small) {
+  padding: 4px 8px;
+  font-size: 12px;
 }
 </style>

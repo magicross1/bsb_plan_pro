@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # 后端服务 - 开发模式
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: bsb-backend-dev
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./api:/app
+    networks:
+      - bsb-network
+    restart: unless-stopped
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # 前端服务 - 开发模式
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.dev
+    container_name: bsb-frontend-dev
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - bsb-network
+    restart: unless-stopped
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
+networks:
+  bsb-network:
+    driver: bridge

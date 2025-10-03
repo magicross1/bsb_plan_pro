@@ -119,6 +119,11 @@ class VehicleRefreshRequest(BaseModel):
     vehicleIds: List[str]
     range: Optional[TimeRange] = None
 
+# 车辆创建请求
+class VehicleCreateRequest(BaseModel):
+    plateNumber: str
+    driverId: str
+
 # API响应格式
 class ApiResponse(BaseModel):
     code: int

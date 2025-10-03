@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 from app.models import (
     ApiResponse, TimeRange, TaskCreate, TripCreate, 
-    DragPmPayload, DragTimePayload, VehicleRefreshRequest
+    DragPmPayload, DragTimePayload, VehicleRefreshRequest, VehicleCreateRequest
 )
 from app.database import (
     get_vehicles_by_time_range, add_task, delete_task, 
@@ -232,3 +232,110 @@ async def get_vehicle_driver_list():
         return ApiResponse(code=0, message="ok", data=[availableVehicles, availableDrivers])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取车辆列表失败: {str(e)}")
+
+@router.post("/create_vehicle")
+async def create_vehicle(request: VehicleCreateRequest):
+    """创建新车辆"""
+    try:
+        from app.database import DB
+        import uuid
+        
+        # 验证车辆和司机是否可用
+        if request.plateNumber not in DB['plateNumber']:
+            return ApiResponse(code=40001, message="车辆不存在", data=None)
+        
+        if request.driverId not in DB['driverId']:
+            return ApiResponse(code=40001, message="司机不存在", data=None)
+        
+        # 检查车辆是否已被使用
+        existing_vehicles = [v for v in DB['vehicles'] if v['plateNumber'] == request.plateNumber]
+        if existing_vehicles:
+            return ApiResponse(code=40002, message="车辆已被使用", data=None)
+        
+        # 检查司机是否已被使用
+        existing_drivers = [v for v in DB['vehicles'] if v['driverId'] == request.driverId]
+        if existing_drivers:
+            return ApiResponse(code=40002, message="司机已被使用", data=None)
+        
+        # 创建新车辆
+        new_vehicle = {
+            'id': str(uuid.uuid4()),
+            'plateNumber': request.plateNumber,
+            'driverId': request.driverId,
+            'trips': []
+        }
+        
+        DB['vehicles'].append(new_vehicle)
+        
+        return ApiResponse(code=0, message="ok", data=new_vehicle)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"创建车辆失败: {str(e)}")
+
+@router.put("/vehicle/{vehicle_id}")
+async def update_vehicle(vehicle_id: str, request: VehicleCreateRequest):
+    """更新车辆信息"""
+    try:
+        from app.database import DB
+        
+        # 找到要更新的车辆
+        vehicle_index = None
+        for i, vehicle in enumerate(DB['vehicles']):
+            if vehicle['id'] == vehicle_id:
+                vehicle_index = i
+                break
+        
+        if vehicle_index is None:
+            return ApiResponse(code=404, message="车辆不存在", data=None)
+        
+        # 验证车辆和司机是否可用
+        if request.plateNumber not in DB['plateNumber']:
+            return ApiResponse(code=40001, message="车辆不存在", data=None)
+        
+        if request.driverId not in DB['driverId']:
+            return ApiResponse(code=40001, message="司机不存在", data=None)
+        
+        # 检查车辆是否已被其他车辆使用
+        existing_vehicles = [v for v in DB['vehicles'] if v['plateNumber'] == request.plateNumber and v['id'] != vehicle_id]
+        if existing_vehicles:
+            return ApiResponse(code=40002, message="车辆已被使用", data=None)
+        
+        # 检查司机是否已被其他车辆使用
+        existing_drivers = [v for v in DB['vehicles'] if v['driverId'] == request.driverId and v['id'] != vehicle_id]
+        if existing_drivers:
+            return ApiResponse(code=40002, message="司机已被使用", data=None)
+        
+        # 更新车辆信息
+        DB['vehicles'][vehicle_index]['plateNumber'] = request.plateNumber
+        DB['vehicles'][vehicle_index]['driverId'] = request.driverId
+        
+        return ApiResponse(code=0, message="ok", data=DB['vehicles'][vehicle_index])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"更新车辆失败: {str(e)}")
+
+@router.delete("/vehicle/{vehicle_id}")
+async def delete_vehicle(vehicle_id: str):
+    """删除车辆"""
+    try:
+        from app.database import DB
+        
+        # 找到要删除的车辆
+        vehicle_index = None
+        for i, vehicle in enumerate(DB['vehicles']):
+            if vehicle['id'] == vehicle_id:
+                vehicle_index = i
+                break
+        
+        if vehicle_index is None:
+            return ApiResponse(code=404, message="车辆不存在", data=None)
+        
+        # 检查是否有相关行程
+        vehicle = DB['vehicles'][vehicle_index]
+        if vehicle['trips']:
+            return ApiResponse(code=40003, message="车辆存在相关行程，无法删除", data=None)
+        
+        # 删除车辆
+        deleted_vehicle = DB['vehicles'].pop(vehicle_index)
+        
+        return ApiResponse(code=0, message="ok", data=deleted_vehicle)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"删除车辆失败: {str(e)}")

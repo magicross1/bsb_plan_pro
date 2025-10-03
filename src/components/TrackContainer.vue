@@ -12,6 +12,7 @@ interface Props {
   scrollLeft?: number
   scrollTop?: number
   viewMode?: ViewMode
+  height?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -36,7 +37,16 @@ const timelineWidth = computed(() => {
   return (diffMinutes / 60) * props.pixelsPerHour
 })
 
-// 滚动处理
+// 计算轨道容器高度 - 与车辆列表高度同步（包括10个空槽位）
+const containerHeight = computed(() => {
+  if (props.height) {
+    return props.height
+  }
+  const totalSlots = props.vehicles.length + 10 // 现有车辆 + 10个空槽位
+  return totalSlots * 120 // 每辆车120px高度
+})
+
+// 滚动处理 - 确保滚动事件正确传递
 function handleScroll(event: Event) {
   const target = event.target as HTMLElement
   emit('horizontalScroll', target.scrollLeft)
@@ -68,6 +78,7 @@ function handleSelection(event: MouseEvent) {
   <div 
     ref="containerRef"
     class="track-container"
+    :style="{ scrollLeft: scrollLeft + 'px', scrollTop: scrollTop + 'px' } as any"
     @scroll="handleScroll"
     @contextmenu="handleContextMenu"
     @mousedown="handleSelection"
@@ -76,7 +87,8 @@ function handleSelection(event: MouseEvent) {
       class="tracks-wrapper"
       :style="{ 
         width: timelineWidth + 'px',
-        minWidth: '100%'
+        minWidth: '100%',
+        height: containerHeight + 'px'
       }"
     >
       <Track
@@ -100,11 +112,32 @@ function handleSelection(event: MouseEvent) {
   overflow: auto;
   background: white;
   position: relative;
+  min-height: 0;
+}
+
+.track-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.track-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.track-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.track-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 .tracks-wrapper {
   position: relative;
   min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 时间网格背景 */

@@ -1,7 +1,7 @@
 <!-- 时间轴头部组件 -->
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { formatTime, getCurrentTime, diffMinutes } from '@/utils/time'
+import { formatTime, getCurrentTime } from '@/utils/time'
 import dayjs from 'dayjs'
 
 interface Props {
@@ -10,6 +10,7 @@ interface Props {
   pixelsPerHour: number
   scrollLeft?: number
   scrollTop?: number
+  currentPageDate?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -20,7 +21,6 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   scroll: [value: number]
   'update:pixelsPerHour': [value: number]
-  rangeChange: [range: { start: string; end: string }]
 }>()
 
 // DOM引用
@@ -37,27 +37,48 @@ const timelineWidth = computed(() => {
   return (totalMinutes / 60) * props.pixelsPerHour
 })
 
-const hoursInRange = computed(() => {
-  const start = dayjs(props.timelineStart)
-  const end = dayjs(props.timelineEnd)
-  return end.diff(start, 'hour')
-})
 
-// 时间刻度
+// 时间刻度 - 支持连续时间轴显示
 const timeMarkers = computed(() => {
   const markers = []
   const start = dayjs(props.timelineStart)
   const end = dayjs(props.timelineEnd)
-  const hours = Math.ceil(end.diff(start, 'hour'))
+  const totalHours = Math.ceil(end.diff(start, 'hour'))
   
-  for (let i = 0; i <= hours; i++) {
+  // 生成小时刻度
+  for (let i = 0; i <= totalHours; i++) {
     const time = start.add(i, 'hour')
     const position = (i * props.pixelsPerHour)
+    
+    // 判断是否是新的一天
+    const isNewDay = i === 0 || time.hour() === 0
+    const isMajor = i % 4 === 0 || isNewDay
+    
+    // 判断是否是当前页面日期
+    const isCurrentPage = props.currentPageDate ? 
+      time.format('YYYY-MM-DD') === props.currentPageDate : false
+    
+    // 判断是否是今天
+    const isToday = time.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD')
+    
+    // 判断是否是昨天或明天
+    const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD')
+    const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD')
+    const isYesterday = time.format('YYYY-MM-DD') === yesterday
+    const isTomorrow = time.format('YYYY-MM-DD') === tomorrow
+    
     markers.push({
       time: time.format('HH:mm'),
-      date: i % 24 === 0 ? time.format('MM-DD') : '',
+      date: isNewDay ? time.format('MM-DD') : '',
+      fullDate: isNewDay ? time.format('YYYY-MM-DD') : '',
       position,
-      isMajor: i % 4 === 0 || i === 0
+      isMajor,
+      isNewDay,
+      isCurrentHour: time.isSame(dayjs(), 'hour'),
+      isCurrentPage,
+      isToday,
+      isYesterday,
+      isTomorrow
     })
   }
   
@@ -87,9 +108,11 @@ function handleWheel(event: WheelEvent) {
     
     emit('update:pixelsPerHour', newPixelsPerHour)
   } else {
-    // 普通滚动
-    const scrollValue = event.deltaY > 0 ? 100 : -100
-    emit('scroll', scrollValue)
+    // 普通滚动 - 直接传递滚动值
+    if (timelineRef.value) {
+      const newScrollLeft = timelineRef.value.scrollLeft + event.deltaY
+      emit('scroll', newScrollLeft)
+    }
   }
 }
 
@@ -131,14 +154,25 @@ function handleTimelineClick(event: MouseEvent) {
   const minutes = (clickX / props.pixelsPerHour) * 60
   const clickTime = dayjs(props.timelineStart).add(minutes, 'minute')
   
-  // TODO: 触发时间轴点击事件
+  // 触发时间轴点击事件
   console.log('Timeline clicked at:', clickTime.format('YYYY-MM-DD HH:mm:ss'))
 }
 
 // 监听滚动位置变化
 watch(() => props.scrollLeft, (newValue) => {
-  if (timelineRef.value && !isDragging.value) {
+  if (timelineRef.value && !isDragging.value && !isUpdatingScroll) {
+    isUpdatingScroll = true
     timelineRef.value.scrollLeft = newValue
+    setTimeout(() => {
+      isUpdatingScroll = false
+    }, 10)
+  }
+}, { immediate: true })
+
+// 监听时间轴宽度变化，确保滚动同步
+watch(() => timelineWidth.value, () => {
+  if (timelineRef.value) {
+    timelineRef.value.scrollLeft = props.scrollLeft
   }
 })
 
@@ -148,11 +182,36 @@ watch(() => props.scrollTop, (newValue) => {
   }
 })
 
+// 处理时间轴自身的滚动事件
+function handleTimelineScroll(event: Event) {
+  const target = event.target as HTMLElement
+  if (!isDragging.value && !isUpdatingScroll) {
+    emit('scroll', target.scrollLeft)
+  }
+}
+
+
+// 防止滚动事件循环
+let isUpdatingScroll = false
+
 onMounted(() => {
   if (timelineRef.value) {
     timelineRef.value.scrollLeft = props.scrollLeft
     timelineRef.value.scrollTop = props.scrollTop || 0
   }
+  
+  // 定期同步滚动位置
+  const syncInterval = setInterval(() => {
+    if (timelineRef.value && !isDragging.value && !isUpdatingScroll) {
+      if (Math.abs(timelineRef.value.scrollLeft - props.scrollLeft) > 1) {
+        timelineRef.value.scrollLeft = props.scrollLeft
+      }
+    }
+  }, 100)
+  
+  onUnmounted(() => {
+    clearInterval(syncInterval)
+  })
 })
 
 onUnmounted(() => {
@@ -168,9 +227,11 @@ onUnmounted(() => {
     @wheel="handleWheel"
     @mousedown="handleMouseDown"
     @click="handleTimelineClick"
+    @scroll="handleTimelineScroll"
     :style="{ 
       width: timelineWidth + 'px',
-      minWidth: '100%'
+      minWidth: '100%',
+      transform: `translateX(-${props.scrollLeft}px)`
     }"
   >
     <!-- 时间刻度 -->
@@ -179,11 +240,24 @@ onUnmounted(() => {
         v-for="marker in timeMarkers"
         :key="marker.time"
         class="time-marker"
-        :class="{ 'major': marker.isMajor }"
+        :class="{ 
+          'major': marker.isMajor,
+          'new-day': marker.isNewDay,
+          'current-hour': marker.isCurrentHour,
+          'current-page': marker.isCurrentPage,
+          'today': marker.isToday,
+          'yesterday': marker.isYesterday,
+          'tomorrow': marker.isTomorrow
+        }"
         :style="{ left: marker.position + 'px' }"
       >
         <div class="time-label">{{ marker.time }}</div>
-        <div v-if="marker.date" class="date-label">{{ marker.date }}</div>
+        <div v-if="marker.date" class="date-label">
+          <span v-if="marker.isToday" class="date-tag today-tag">今天</span>
+          <span v-else-if="marker.isYesterday" class="date-tag yesterday-tag">昨天</span>
+          <span v-else-if="marker.isTomorrow" class="date-tag tomorrow-tag">明天</span>
+          <span v-else>{{ marker.date }}</span>
+        </div>
       </div>
     </div>
 
@@ -244,6 +318,67 @@ onUnmounted(() => {
 
 .time-marker.major {
   font-weight: 600;
+}
+
+.time-marker.new-day {
+  background: rgba(33, 150, 243, 0.1);
+  border-left: 2px solid #2196f3;
+  padding-left: 4px;
+}
+
+.time-marker.current-hour {
+  background: rgba(255, 68, 68, 0.1);
+  border-left: 2px solid #ff4444;
+  padding-left: 4px;
+}
+
+.time-marker.current-page {
+  background: rgba(33, 150, 243, 0.2);
+  border-left: 3px solid #2196f3;
+  padding-left: 4px;
+  font-weight: 600;
+}
+
+.time-marker.today {
+  background: rgba(76, 175, 80, 0.2);
+  border-left: 3px solid #4caf50;
+  padding-left: 4px;
+  font-weight: 600;
+}
+
+.time-marker.yesterday {
+  background: rgba(255, 152, 0, 0.2);
+  border-left: 3px solid #ff9800;
+  padding-left: 4px;
+  font-weight: 600;
+}
+
+.time-marker.tomorrow {
+  background: rgba(156, 39, 176, 0.2);
+  border-left: 3px solid #9c27b0;
+  padding-left: 4px;
+  font-weight: 600;
+}
+
+.date-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+}
+
+.today-tag {
+  background: #4caf50;
+}
+
+.yesterday-tag {
+  background: #ff9800;
+}
+
+.tomorrow-tag {
+  background: #9c27b0;
 }
 
 .time-label {

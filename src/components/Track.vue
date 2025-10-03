@@ -64,10 +64,9 @@ const trackRef = ref<HTMLElement>()
 
 // 计算属性
 const trackStyle = computed(() => ({
-  height: props.viewMode === 'horizontal' ? 'var(--row-height)' : 'auto',
-  width: props.viewMode === 'vertical' ? 'var(--row-height)' : 'auto',
-  minHeight: props.viewMode === 'horizontal' ? 'var(--row-height)' : 'auto',
-  minWidth: props.viewMode === 'vertical' ? 'var(--row-height)' : 'auto'
+  height: 'var(--row-height)',
+  minHeight: 'var(--row-height)',
+  flexShrink: 0
 }))
 
 // 右键菜单处理

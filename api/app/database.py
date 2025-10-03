@@ -79,14 +79,14 @@ def init_sample_data():
             'EDO PIN': 'PIN001',
             'Shipping Line': '航运公司A',
             'Empty Park': '空柜场A',
-            'Pick Up Date': '2024-01-16 09:00:00',
-            'Deliver Date': '2024-01-16 14:00:00',
-            'Pick Empty Date': '2024-01-18 10:00:00',
-            'Dehire Date': '2024-01-18 15:00:00',
-            'Plan Pick Up Date': '2024-01-16 09:00:00',
-            'Plan Deliver Date': '2024-01-16 14:00:00',
-            'Plan Pick Empty Date': '2024-01-18 10:00:00',
-            'Plan Dehire Date': '2024-01-18 15:00:00',
+            'Pick Up Date': '',
+            'Deliver Date': '',
+            'Pick Empty Date': '',
+            'Dehire Date': '',
+            'Plan Pick Up Date': '',
+            'Plan Deliver Date': '',
+            'Plan Pick Empty Date': '',
+            'Plan Dehire Date': '',
             'Request Deliver Date': '',
         },
         {
@@ -393,7 +393,11 @@ def get_vehicles_by_time_range(start_time: str, end_time: str) -> List[Vehicle]:
                     trip_tasks = []
                     for task_data in DB['tasks']:
                         if task_data['tripId'] == trip_data['id']:
-                            task = Task(**task_data)
+                            # 转换时间字符串为datetime对象
+                            task_data_copy = task_data.copy()
+                            task_data_copy['planStart'] = datetime.strptime(task_data['planStart'], '%Y-%m-%d %H:%M:%S')
+                            task_data_copy['planEnd'] = datetime.strptime(task_data['planEnd'], '%Y-%m-%d %H:%M:%S')
+                            task = Task(**task_data_copy)
                             trip_tasks.append(task)
                     
                     trip = Trip(
